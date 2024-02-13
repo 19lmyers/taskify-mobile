@@ -1,0 +1,31 @@
+PODS:
+  - Taskify (1.0.0):
+    - TensorFlowLiteObjC
+  - TensorFlowLiteC (2.14.0):
+    - TensorFlowLiteC/Core (= 2.14.0)
+  - TensorFlowLiteC/Core (2.14.0)
+  - TensorFlowLiteObjC (2.14.0):
+    - TensorFlowLiteObjC/Core (= 2.14.0)
+  - TensorFlowLiteObjC/Core (2.14.0):
+    - TensorFlowLiteC (= 2.14.0)
+
+DEPENDENCIES:
+  - Taskify (from `../iosFramework/Taskify.podspec`)
+
+SPEC REPOS:
+  trunk:
+    - TensorFlowLiteC
+    - TensorFlowLiteObjC
+
+EXTERNAL SOURCES:
+  Taskify:
+    :path: "../iosFramework/Taskify.podspec"
+
+SPEC CHECKSUMS:
+  Taskify: 6ed1fe17751ad947133bf7a7276bbd64c9cc0e55
+  TensorFlowLiteC: a836de9b6e6018665ccc349538bdd2c3b80dd7a5
+  TensorFlowLiteObjC: d2f4f4b543a733b0a3efb19904ffb1da267fa002
+
+PODFILE CHECKSUM: 9c002e2ee9977f145b4314586a84688930378c90
+
+COCOAPODS: 1.15.2

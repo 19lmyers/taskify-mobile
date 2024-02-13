@@ -1,0 +1,4 @@
+target 'iosApp' do
+    platform :ios, '15.2'
+    pod 'Taskify', :path => '../iosFramework/Taskify.podspec'
+end

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@mipmap/ic_new_task"
+        android:shortcutDisabledMessage="@string/shortcut_new_disabled"
+        android:shortcutId="new_task"
+        android:shortcutLongLabel="@string/shortcut_new_label_long"
+        android:shortcutShortLabel="@string/shortcut_new_label_short">
+        <intent
+            android:action="dev.chara.taskify.android.ACTION_NEW_TASK"
+            android:targetClass="dev.chara.taskify.android.ui.MainActivity"
+            android:targetPackage="dev.chara.taskify.android" />
+    </shortcut>
+</shortcuts>

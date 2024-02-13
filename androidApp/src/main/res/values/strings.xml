@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Taskify</string>
+
+    <string name="shortcut_new_disabled">Sign in first</string>
+
+    <string name="shortcut_new_label_short">New task</string>
+    <string name="shortcut_new_label_long">New task</string>
+</resources>
