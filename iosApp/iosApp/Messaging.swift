@@ -64,13 +64,13 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 
          let messageType = userInfo[DATA_MESSAGE_TYPE] as? String
 
-        if messageType == MESSAGE_TYPE_REMINDER {
+         if messageType == MESSAGE_TYPE_REMINDER {
             guard let taskId = userInfo[DATA_TASK_ID] as? String else { return }
             
             if response.actionIdentifier == COMPLETE_ACTION_IDENTIFIER {
                 rootHolder.root.markTaskAsCompleted(taskId: taskId)
             } else {
-                //rootHolder.root.onDeepLink(deepLink: DeepLinkViewTask(id: taskId))
+                //rootHolder.root.onDeepLink(deepLink: DeepLinkViewTask())
             }
         }
     }

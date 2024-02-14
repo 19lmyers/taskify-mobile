@@ -3,6 +3,12 @@ import FirebaseCore
 import FirebaseMessaging
 import TaskifyShared
 
+private var PATH_VIEW_WORKSPACE = "/workspace"
+private var PATH_VIEW_TASK = "/task"
+
+private var QUERY_WORKSPACE_ID = "workspaceId"
+private var QUERY_TASK_ID = "taskId"
+
 private var PATH_JOIN_WORKSPACE = "/join"
 private var QUERY_INVITE_TOKEN = "token"
 
@@ -47,6 +53,16 @@ struct iOSApp: App {
                     }
 
                     switch path {
+                    case PATH_VIEW_WORKSPACE:
+                        if let workspaceId = params.first(where: { $0.name == QUERY_WORKSPACE_ID })?.value {
+                            rootHolder.root.onDeepLink(deepLink: DeepLinkViewWorkspace(id: workspaceId))
+                        }
+                    case PATH_VIEW_TASK:
+                        if let workspaceId = params.first(where: { $0.name == QUERY_WORKSPACE_ID })?.value {
+                            if let taskId = params.first(where: { $0.name == QUERY_TASK_ID })?.value {
+                                rootHolder.root.onDeepLink(deepLink: DeepLinkViewTask(workspaceId: workspaceId, taskId: taskId))
+                            }
+                        }
                     case PATH_JOIN_WORKSPACE:
                         if let token = params.first(where: { $0.name == QUERY_INVITE_TOKEN })?.value {
                             rootHolder.root.onDeepLink(deepLink: DeepLinkJoinWorkspace(token: token))

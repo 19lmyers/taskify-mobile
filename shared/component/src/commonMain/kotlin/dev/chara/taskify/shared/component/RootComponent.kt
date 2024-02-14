@@ -83,7 +83,7 @@ class DefaultRootComponent(
             if (profile == null) {
                 listOf(Config.Welcome)
             } else {
-                listOf(getStackFor(deepLink))
+                getStackFor(deepLink)
             }
         }, childFactory = ::child, handleBackButton = true
     )
@@ -91,18 +91,20 @@ class DefaultRootComponent(
     override val childStack: Value<ChildStack<*, Child>> = stack
 
     private fun child(config: Config, componentContext: ComponentContext): Child = when (config) {
-        is Config.Home -> Child.Home(DefaultHomeComponent(componentContext,
-            showCreateTaskSheet = config.showCreateTask,
-            showJoinWorkspaceFor = config.showJoinWorkspaceFor,
-            navigateToWelcome = {
-                navigation.replaceAll(Config.Welcome)
-            },
-            navigateToCategoryDetails = { workspaceId, categoryId ->
-                navigation.push(Config.CategoryDetails(workspaceId, categoryId))
-            },
-            navigateToTaskDetails = { workspaceId, taskId ->
-                navigation.push(Config.TaskDetails(workspaceId, taskId))
-            })
+        is Config.Home -> Child.Home(
+            DefaultHomeComponent(componentContext,
+                preselectWorkspace = config.preselectWorkspace,
+                showCreateTaskSheet = config.showCreateTask,
+                showJoinWorkspaceFor = config.showJoinWorkspaceFor,
+                navigateToWelcome = {
+                    navigation.replaceAll(Config.Welcome)
+                },
+                navigateToCategoryDetails = { workspaceId, categoryId ->
+                    navigation.push(Config.CategoryDetails(workspaceId, categoryId))
+                },
+                navigateToTaskDetails = { workspaceId, taskId ->
+                    navigation.push(Config.TaskDetails(workspaceId, taskId))
+                })
         )
 
         is Config.CategoryDetails -> Child.CategoryDetails(
@@ -153,7 +155,7 @@ class DefaultRootComponent(
     }
 
     override fun onDeepLink(deepLink: DeepLink) {
-        navigation.replaceAll(getStackFor(deepLink))
+        navigation.replaceAll(*getStackFor(deepLink).toTypedArray())
     }
 
     override fun linkFCMToken(token: String) {
@@ -177,10 +179,20 @@ class DefaultRootComponent(
     }
 
     private companion object {
-        private fun getStackFor(deepLink: DeepLink): Config = when (deepLink) {
-            DeepLink.None -> Config.Home()
-            is DeepLink.JoinWorkspace -> Config.Home(showJoinWorkspaceFor = deepLink.token)
-            DeepLink.CreateTask -> Config.Home(showCreateTask = true)
+        private fun getStackFor(deepLink: DeepLink): List<Config> = when (deepLink) {
+            DeepLink.None -> listOf(Config.Home())
+            DeepLink.CreateTask -> listOf(Config.Home(showCreateTask = true))
+            is DeepLink.ViewWorkspace -> listOf(Config.Home(preselectWorkspace = ReceivedId(deepLink.id)))
+
+            is DeepLink.ViewTask -> listOf(
+                Config.Home(preselectWorkspace = ReceivedId(deepLink.workspaceId)),
+                Config.TaskDetails(
+                    workspaceId = ReceivedId(deepLink.workspaceId),
+                    taskId = ReceivedId(deepLink.taskId)
+                )
+            )
+
+            is DeepLink.JoinWorkspace -> listOf(Config.Home(showJoinWorkspaceFor = deepLink.token))
         }
     }
 
@@ -197,6 +209,7 @@ class DefaultRootComponent(
 
         @Serializable
         data class Home(
+            @Serializable(with = IdSerializer::class) val preselectWorkspace: Id? = null,
             val showCreateTask: Boolean = false,
             val showJoinWorkspaceFor: String? = null
         ) : Config

@@ -24,6 +24,7 @@ import dev.chara.taskify.android.notification.Action
 import dev.chara.taskify.android.notification.receiver.NotificationActionReceiver
 import dev.chara.taskify.android.ui.MainActivity
 import dev.chara.taskify.shared.domain.use_case.account.LinkFcmTokenUseCase
+import dev.chara.taskify.shared.domain.use_case.account.RefreshDataUseCase
 import dev.chara.taskify.shared.domain.use_case.data.category.GetCategoryUseCase
 import dev.chara.taskify.shared.domain.use_case.data.task.GetTaskUseCase
 import dev.chara.taskify.shared.domain.use_case.data.workspace.GetWorkspaceUseCase
@@ -42,6 +43,7 @@ class MessagingService : FirebaseMessagingService(), LifecycleOwner {
 
     private val linkFcmTokenUseCase: LinkFcmTokenUseCase by inject()
 
+    private val refreshDataUseCase: RefreshDataUseCase by inject()
     private val getTaskUseCase: GetTaskUseCase by inject()
     private val getCategoryUseCase: GetCategoryUseCase by inject()
     private val getWorkspaceUseCase: GetWorkspaceUseCase by inject()
@@ -73,337 +75,358 @@ class MessagingService : FirebaseMessagingService(), LifecycleOwner {
 
         val messageType = message.data[DATA_MESSAGE_TYPE]
 
-        if (messageType == MESSAGE_TYPE_ACTION) {
-            val actor = message.data[DATA_ACTOR] ?: return
+        when (messageType) {
+            MESSAGE_TYPE_ACTION -> {
+                val actor = message.data[DATA_ACTOR] ?: return
+                
+                val action = message.data[DATA_ACTION]?.let { actionString ->
+                    Action.entries.firstOrNull { it.name == actionString }
+                } ?: return
+                
+                val taskId = message.data[DATA_TASK_ID]?.let {
+                    ReceivedId(it)
+                } ?: return
+                
+                lifecycleScope.launch {
+                    refreshDataUseCase()
 
-            val action = message.data[DATA_ACTION]?.let { actionString ->
-                Action.entries.firstOrNull { it.name == actionString }
-            } ?: return
+                    val task = getTaskUseCase(taskId).first() ?: return@launch
 
-            val taskId = message.data[DATA_TASK_ID]?.let {
-                ReceivedId(it)
-            } ?: return
-
-            lifecycleScope.launch {
-                val task = getTaskUseCase(taskId).first() ?: return@launch
-
-                val category = task.categoryId?.let {
-                    getCategoryUseCase(it).first()
-                }
-
-                val workspace = task.workspaceId?.let {
-                    getWorkspaceUseCase(it).first()
-                } ?: return@launch
-
-                val body = when (action) {
-                    Action.AddTask -> "$actor added"
-                    Action.RemoveTask -> "$actor removed"
-                    Action.CompleteTask -> "$actor completed"
-                }
-
-                val groupId = workspace.id.hexString
-                val groupName = workspace.name
-
-                val notificationManager =
-                    getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.createNotificationChannelGroup(
-                    NotificationChannelGroup(
-                        groupId, groupName
-                    )
-                )
-
-                val actionChannelId = "${workspace.id.hexString}/actions"
-
-                val viewWorkspaceIntent = Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.Builder().scheme("https").authority(MainActivity.DEEP_LINK_HOST)
-                        //.path(MainActivity.PATH_VIEW_LIST)
-                        //.appendQueryParameter(MainActivity.QUERY_LIST_ID, listId)
-                        .build()
-                )
-
-                val viewWorkspacePendingIntent = PendingIntent.getActivity(
-                    this@MessagingService,
-                    0,
-                    viewWorkspaceIntent,
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
-                )
-
-                var builder = NotificationCompat.Builder(this@MessagingService, actionChannelId)
-                    .setContentTitle(task.name)
-                    .setContentText(body)
-                    .setSubText(category?.name ?: "Uncategorized")
-                    .setShowWhen(true)
-                    .setSmallIcon(R.drawable.baseline_fact_check_24)
-                    .setWhen(message.sentTime)
-                    .setPriority(NotificationCompat.PRIORITY_LOW)
-                    .setContentIntent(viewWorkspacePendingIntent)
-                    .setAutoCancel(true)
-                    .setGroup(GROUP_ACTIONS)
-
-                if (category?.color != null) {
-                    builder = builder.setColor(resources.getColor(category.color!!.res, theme))
-                } else if (workspace.color != null) {
-                    builder = builder.setColor(resources.getColor(workspace.color!!.res, theme))
-                }
-
-                if (ActivityCompat.checkSelfPermission(
-                        applicationContext, Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    val channel = NotificationChannel(
-                        actionChannelId, "Activity", NotificationManager.IMPORTANCE_LOW
-                    )
-                    channel.group = groupId
-
-                    notificationManager.createNotificationChannel(channel)
-
-                    NotificationManagerCompat.from(this@MessagingService)
-                        .notify(taskId.hexString, NOTIFICATION_TYPE_ACTION, builder.build())
-
-                    var summaryBuilder =
-                        NotificationCompat.Builder(this@MessagingService, actionChannelId)
-                            .setSmallIcon(R.drawable.baseline_fact_check_24)
-                            .setContentTitle("Shared list activity").setSubText(workspace.name)
-                            .setGroup(GROUP_ACTIONS)
-                            .setGroupSummary(true)
-
-                    if (workspace.color != null) {
-                        summaryBuilder = summaryBuilder.setColor(
-                            resources.getColor(
-                                workspace.color!!.res,
-                                theme
-                            )
-                        )
+                    val category = task.categoryId?.let {
+                        getCategoryUseCase(it).first()
                     }
 
-                    NotificationManagerCompat.from(this@MessagingService)
-                        .notify(
-                            workspace.id.hexString,
-                            NOTIFICATION_TYPE_ACTION,
-                            summaryBuilder.build()
+                    val workspace = task.workspaceId?.let {
+                        getWorkspaceUseCase(it).first()
+                    } ?: return@launch
+
+                    val body = when (action) {
+                        Action.AddTask -> "$actor added"
+                        Action.RemoveTask -> "$actor removed"
+                        Action.CompleteTask -> "$actor completed"
+                    }
+
+                    val groupId = workspace.id.hexString
+                    val groupName = workspace.name
+
+                    val notificationManager =
+                        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.createNotificationChannelGroup(
+                        NotificationChannelGroup(
+                            groupId, groupName
                         )
+                    )
+
+                    val actionChannelId = "${workspace.id.hexString}/actions"
+
+                    val editTaskIntent =
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.Builder()
+                                .scheme("https")
+                                .authority(MainActivity.DEEP_LINK_HOST)
+                                .path(MainActivity.PATH_VIEW_TASK)
+                                .appendQueryParameter(MainActivity.QUERY_WORKSPACE_ID, workspace.id.hexString)
+                                .appendQueryParameter(MainActivity.QUERY_TASK_ID, taskId.hexString)
+                                .build()
+                        )
+
+                    val editTaskPendingIntent =
+                        PendingIntent.getActivity(
+                            this@MessagingService,
+                            0,
+                            editTaskIntent,
+                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
+                        )
+
+                    var builder = NotificationCompat.Builder(this@MessagingService, actionChannelId)
+                        .setContentTitle(task.name)
+                        .setContentText(body)
+                        .setSubText(category?.name ?: "Uncategorized")
+                        .setShowWhen(true)
+                        .setSmallIcon(R.drawable.baseline_fact_check_24)
+                        .setWhen(message.sentTime)
+                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setContentIntent(editTaskPendingIntent)
+                        .setAutoCancel(true)
+                        .setGroup(GROUP_ACTIONS)
+
+                    if (category?.color != null) {
+                        builder = builder.setColor(resources.getColor(category.color!!.res, theme))
+                    } else if (workspace.color != null) {
+                        builder = builder.setColor(resources.getColor(workspace.color!!.res, theme))
+                    }
+
+                    if (ActivityCompat.checkSelfPermission(
+                            applicationContext, Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        val channel = NotificationChannel(
+                            actionChannelId, "Activity", NotificationManager.IMPORTANCE_LOW
+                        )
+                        channel.group = groupId
+
+                        notificationManager.createNotificationChannel(channel)
+
+                        NotificationManagerCompat.from(this@MessagingService)
+                            .notify(taskId.hexString, NOTIFICATION_TYPE_ACTION, builder.build())
+
+                        var summaryBuilder =
+                            NotificationCompat.Builder(this@MessagingService, actionChannelId)
+                                .setSmallIcon(R.drawable.baseline_fact_check_24)
+                                .setContentTitle("Activity").setSubText(workspace.name)
+                                .setGroup(GROUP_ACTIONS)
+                                .setGroupSummary(true)
+
+                        if (workspace.color != null) {
+                            summaryBuilder = summaryBuilder.setColor(
+                                resources.getColor(
+                                    workspace.color!!.res,
+                                    theme
+                                )
+                            )
+                        }
+
+                        NotificationManagerCompat.from(this@MessagingService)
+                            .notify(
+                                workspace.id.hexString,
+                                NOTIFICATION_TYPE_ACTION,
+                                summaryBuilder.build()
+                            )
+                    }
                 }
             }
-        } else if (messageType == MESSAGE_TYPE_REMINDER) {
-            val taskId = message.data[DATA_TASK_ID]?.let {
-                ReceivedId(it)
-            } ?: return
+            MESSAGE_TYPE_REMINDER -> {
+                val taskId = message.data[DATA_TASK_ID]?.let {
+                    ReceivedId(it)
+                } ?: return
 
-            lifecycleScope.launch {
-                val task = getTaskUseCase(taskId).first() ?: return@launch
+                lifecycleScope.launch {
+                    refreshDataUseCase()
 
-                val category = task.categoryId?.let {
-                    getCategoryUseCase(it).first()
-                }
+                    val task = getTaskUseCase(taskId).first() ?: return@launch
 
-                val workspace = task.workspaceId?.let {
-                    getWorkspaceUseCase(it).first()
-                } ?: return@launch
-
-                val groupId = workspace.id.hexString
-                val groupName = workspace.name
-
-                val notificationManager =
-                    getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.createNotificationChannelGroup(
-                    NotificationChannelGroup(
-                        groupId, groupName
-                    )
-                )
-
-                val reminderChannelId = "${workspace.id.hexString}/reminders"
-
-                val editTaskIntent =
-                    Intent(
-                        Intent.ACTION_VIEW,
-                        Uri.Builder()
-                            .scheme("https")
-                            .authority(MainActivity.DEEP_LINK_HOST)
-                            //.path(MainActivity.PATH_VIEW_TASK)
-                            //.appendQueryParameter(MainActivity.QUERY_TASK_ID, taskId)
-                            .build()
-                    )
-
-                val editTaskPendingIntent =
-                    PendingIntent.getActivity(
-                        this@MessagingService,
-                        0,
-                        editTaskIntent,
-                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
-                    )
-
-                val completeTaskIntent =
-                    Intent(this@MessagingService, NotificationActionReceiver::class.java)
-                        .setAction(NotificationActionReceiver.ACTION_COMPLETE_TASK)
-                        .putExtra(NotificationActionReceiver.EXTRA_TASK_ID, taskId.hexString)
-
-                val completeTaskPendingIntent =
-                    PendingIntent.getBroadcast(
-                        this@MessagingService,
-                        0,
-                        completeTaskIntent,
-                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
-                    )
-
-                var builder = NotificationCompat.Builder(this@MessagingService, reminderChannelId)
-                    .setContentTitle(task.name)
-                    .setSubText(category?.name ?: "Uncategorized")
-                    .setShowWhen(true)
-                    .setSmallIcon(R.drawable.baseline_fact_check_24)
-                    .setWhen(message.sentTime)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setContentIntent(editTaskPendingIntent)
-                    .addAction(R.drawable.baseline_done_24, "Mark as complete", completeTaskPendingIntent)
-                    .setAutoCancel(true)
-                    .setGroup(GROUP_REMINDERS)
-
-                if (category?.color != null) {
-                    builder = builder.setColor(resources.getColor(category.color!!.res, theme))
-                } else if (workspace.color != null) {
-                    builder = builder.setColor(resources.getColor(workspace.color!!.res, theme))
-                }
-
-                if (ActivityCompat.checkSelfPermission(
-                        applicationContext, Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    val channel = NotificationChannel(
-                        reminderChannelId, "Reminders", NotificationManager.IMPORTANCE_HIGH
-                    )
-                    channel.group = groupId
-
-                    notificationManager.createNotificationChannel(channel)
-
-                    NotificationManagerCompat.from(this@MessagingService)
-                        .notify(taskId.hexString, NOTIFICATION_TYPE_REMINDER, builder.build())
-
-                    var summaryBuilder =
-                        NotificationCompat.Builder(this@MessagingService, reminderChannelId)
-                            .setSmallIcon(R.drawable.baseline_fact_check_24)
-                            .setContentTitle("Reminders").setSubText(workspace.name)
-                            .setGroup(GROUP_REMINDERS)
-                            .setGroupSummary(true)
-
-                    if (workspace.color != null) {
-                        summaryBuilder = summaryBuilder.setColor(
-                            resources.getColor(
-                                workspace.color!!.res,
-                                theme
-                            )
-                        )
+                    val category = task.categoryId?.let {
+                        getCategoryUseCase(it).first()
                     }
 
-                    NotificationManagerCompat.from(this@MessagingService)
-                        .notify(
-                            workspace.id.hexString,
-                            NOTIFICATION_TYPE_REMINDER,
-                            summaryBuilder.build()
+                    val workspace = task.workspaceId?.let {
+                        getWorkspaceUseCase(it).first()
+                    } ?: return@launch
+
+                    val groupId = workspace.id.hexString
+                    val groupName = workspace.name
+
+                    val notificationManager =
+                        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.createNotificationChannelGroup(
+                        NotificationChannelGroup(
+                            groupId, groupName
                         )
+                    )
+
+                    val reminderChannelId = "${workspace.id.hexString}/reminders"
+
+                    val editTaskIntent =
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.Builder()
+                                .scheme("https")
+                                .authority(MainActivity.DEEP_LINK_HOST)
+                                .path(MainActivity.PATH_VIEW_TASK)
+                                .appendQueryParameter(MainActivity.QUERY_WORKSPACE_ID, workspace.id.hexString)
+                                .appendQueryParameter(MainActivity.QUERY_TASK_ID, taskId.hexString)
+                                .build()
+                        )
+
+                    val editTaskPendingIntent =
+                        PendingIntent.getActivity(
+                            this@MessagingService,
+                            0,
+                            editTaskIntent,
+                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
+                        )
+
+                    val completeTaskIntent =
+                        Intent(this@MessagingService, NotificationActionReceiver::class.java)
+                            .setAction(NotificationActionReceiver.ACTION_COMPLETE_TASK)
+                            .putExtra(NotificationActionReceiver.EXTRA_TASK_ID, taskId.hexString)
+
+                    val completeTaskPendingIntent =
+                        PendingIntent.getBroadcast(
+                            this@MessagingService,
+                            0,
+                            completeTaskIntent,
+                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
+                        )
+
+                    var builder = NotificationCompat.Builder(this@MessagingService, reminderChannelId)
+                        .setContentTitle(task.name)
+                        .setSubText(category?.name ?: "Uncategorized")
+                        .setShowWhen(true)
+                        .setSmallIcon(R.drawable.baseline_fact_check_24)
+                        .setWhen(message.sentTime)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setContentIntent(editTaskPendingIntent)
+                        .addAction(R.drawable.baseline_done_24, "Mark as complete", completeTaskPendingIntent)
+                        .setAutoCancel(true)
+                        .setGroup(GROUP_REMINDERS)
+
+                    if (category?.color != null) {
+                        builder = builder.setColor(resources.getColor(category.color!!.res, theme))
+                    } else if (workspace.color != null) {
+                        builder = builder.setColor(resources.getColor(workspace.color!!.res, theme))
+                    }
+
+                    if (ActivityCompat.checkSelfPermission(
+                            applicationContext, Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        val channel = NotificationChannel(
+                            reminderChannelId, "Reminders", NotificationManager.IMPORTANCE_HIGH
+                        )
+                        channel.group = groupId
+
+                        notificationManager.createNotificationChannel(channel)
+
+                        NotificationManagerCompat.from(this@MessagingService)
+                            .notify(taskId.hexString, NOTIFICATION_TYPE_REMINDER, builder.build())
+
+                        var summaryBuilder =
+                            NotificationCompat.Builder(this@MessagingService, reminderChannelId)
+                                .setSmallIcon(R.drawable.baseline_fact_check_24)
+                                .setContentTitle("Reminders").setSubText(workspace.name)
+                                .setGroup(GROUP_REMINDERS)
+                                .setGroupSummary(true)
+
+                        if (workspace.color != null) {
+                            summaryBuilder = summaryBuilder.setColor(
+                                resources.getColor(
+                                    workspace.color!!.res,
+                                    theme
+                                )
+                            )
+                        }
+
+                        NotificationManagerCompat.from(this@MessagingService)
+                            .notify(
+                                workspace.id.hexString,
+                                NOTIFICATION_TYPE_REMINDER,
+                                summaryBuilder.build()
+                            )
+                    }
                 }
             }
-        } else if (messageType == MESSAGE_TYPE_ASSIGNED) {
-            val actor = message.data[DATA_ACTOR] ?: return
+            MESSAGE_TYPE_ASSIGNED -> {
+                val actor = message.data[DATA_ACTOR] ?: return
 
-            val taskId = message.data[DATA_TASK_ID]?.let {
-                ReceivedId(it)
-            } ?: return
+                val taskId = message.data[DATA_TASK_ID]?.let {
+                    ReceivedId(it)
+                } ?: return
 
-            lifecycleScope.launch {
-                val task = getTaskUseCase(taskId).first() ?: return@launch
+                lifecycleScope.launch {
+                    refreshDataUseCase()
 
-                val category = task.categoryId?.let {
-                    getCategoryUseCase(it).first()
-                }
+                    val task = getTaskUseCase(taskId).first() ?: return@launch
 
-                val workspace = task.workspaceId?.let {
-                    getWorkspaceUseCase(it).first()
-                } ?: return@launch
-
-                val body = "$actor assigned to you"
-
-                val groupId = workspace.id.hexString
-                val groupName = workspace.name
-
-                val notificationManager =
-                    getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                notificationManager.createNotificationChannelGroup(
-                    NotificationChannelGroup(
-                        groupId, groupName
-                    )
-                )
-
-                val actionChannelId = "${workspace.id.hexString}/assigned"
-
-                val viewWorkspaceIntent = Intent(
-                    Intent.ACTION_VIEW,
-                    Uri.Builder().scheme("https").authority(MainActivity.DEEP_LINK_HOST)
-                        //.path(MainActivity.PATH_VIEW_LIST)
-                        //.appendQueryParameter(MainActivity.QUERY_LIST_ID, listId)
-                        .build()
-                )
-
-                val viewWorkspacePendingIntent = PendingIntent.getActivity(
-                    this@MessagingService,
-                    0,
-                    viewWorkspaceIntent,
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
-                )
-
-                var builder = NotificationCompat.Builder(this@MessagingService, actionChannelId)
-                    .setContentTitle(task.name)
-                    .setContentText(body)
-                    .setSubText(category?.name ?: "Uncategorized")
-                    .setShowWhen(true)
-                    .setSmallIcon(R.drawable.baseline_fact_check_24)
-                    .setWhen(message.sentTime)
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setContentIntent(viewWorkspacePendingIntent)
-                    .setAutoCancel(true)
-                    .setGroup(GROUP_ASSIGNED)
-
-                if (category?.color != null) {
-                    builder = builder.setColor(resources.getColor(category.color!!.res, theme))
-                } else if (workspace.color != null) {
-                    builder = builder.setColor(resources.getColor(workspace.color!!.res, theme))
-                }
-
-                if (ActivityCompat.checkSelfPermission(
-                        applicationContext, Manifest.permission.POST_NOTIFICATIONS
-                    ) == PackageManager.PERMISSION_GRANTED
-                ) {
-                    val channel = NotificationChannel(
-                        actionChannelId, "Assigned to you", NotificationManager.IMPORTANCE_HIGH
-                    )
-                    channel.group = groupId
-
-                    notificationManager.createNotificationChannel(channel)
-
-                    NotificationManagerCompat.from(this@MessagingService)
-                        .notify(taskId.hexString, NOTIFICATION_TYPE_ASSIGNED, builder.build())
-
-                    var summaryBuilder =
-                        NotificationCompat.Builder(this@MessagingService, actionChannelId)
-                            .setSmallIcon(R.drawable.baseline_fact_check_24)
-                            .setContentTitle("Assigned to you").setSubText(workspace.name)
-                            .setGroup(GROUP_ASSIGNED)
-                            .setGroupSummary(true)
-
-                    if (workspace.color != null) {
-                        summaryBuilder = summaryBuilder.setColor(
-                            resources.getColor(
-                                workspace.color!!.res,
-                                theme
-                            )
-                        )
+                    val category = task.categoryId?.let {
+                        getCategoryUseCase(it).first()
                     }
 
-                    NotificationManagerCompat.from(this@MessagingService)
-                        .notify(
-                            workspace.id.hexString,
-                            NOTIFICATION_TYPE_ASSIGNED,
-                            summaryBuilder.build()
+                    val workspace = task.workspaceId?.let {
+                        getWorkspaceUseCase(it).first()
+                    } ?: return@launch
+
+                    val body = "$actor assigned to you"
+
+                    val groupId = workspace.id.hexString
+                    val groupName = workspace.name
+
+                    val notificationManager =
+                        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.createNotificationChannelGroup(
+                        NotificationChannelGroup(
+                            groupId, groupName
                         )
+                    )
+
+                    val actionChannelId = "${workspace.id.hexString}/assigned"
+
+                    val editTaskIntent =
+                        Intent(
+                            Intent.ACTION_VIEW,
+                            Uri.Builder()
+                                .scheme("https")
+                                .authority(MainActivity.DEEP_LINK_HOST)
+                                .path(MainActivity.PATH_VIEW_TASK)
+                                .appendQueryParameter(MainActivity.QUERY_WORKSPACE_ID, workspace.id.hexString)
+                                .appendQueryParameter(MainActivity.QUERY_TASK_ID, taskId.hexString)
+                                .build()
+                        )
+
+                    val editTaskPendingIntent =
+                        PendingIntent.getActivity(
+                            this@MessagingService,
+                            0,
+                            editTaskIntent,
+                            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_CANCEL_CURRENT
+                        )
+
+                    var builder = NotificationCompat.Builder(this@MessagingService, actionChannelId)
+                        .setContentTitle(task.name)
+                        .setContentText(body)
+                        .setSubText(category?.name ?: "Uncategorized")
+                        .setShowWhen(true)
+                        .setSmallIcon(R.drawable.baseline_fact_check_24)
+                        .setWhen(message.sentTime)
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setContentIntent(editTaskPendingIntent)
+                        .setAutoCancel(true)
+                        .setGroup(GROUP_ASSIGNED)
+
+                    if (category?.color != null) {
+                        builder = builder.setColor(resources.getColor(category.color!!.res, theme))
+                    } else if (workspace.color != null) {
+                        builder = builder.setColor(resources.getColor(workspace.color!!.res, theme))
+                    }
+
+                    if (ActivityCompat.checkSelfPermission(
+                            applicationContext, Manifest.permission.POST_NOTIFICATIONS
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        val channel = NotificationChannel(
+                            actionChannelId, "Assigned to you", NotificationManager.IMPORTANCE_HIGH
+                        )
+                        channel.group = groupId
+
+                        notificationManager.createNotificationChannel(channel)
+
+                        NotificationManagerCompat.from(this@MessagingService)
+                            .notify(taskId.hexString, NOTIFICATION_TYPE_ASSIGNED, builder.build())
+
+                        var summaryBuilder =
+                            NotificationCompat.Builder(this@MessagingService, actionChannelId)
+                                .setSmallIcon(R.drawable.baseline_fact_check_24)
+                                .setContentTitle("Assigned to you").setSubText(workspace.name)
+                                .setGroup(GROUP_ASSIGNED)
+                                .setGroupSummary(true)
+
+                        if (workspace.color != null) {
+                            summaryBuilder = summaryBuilder.setColor(
+                                resources.getColor(
+                                    workspace.color!!.res,
+                                    theme
+                                )
+                            )
+                        }
+
+                        NotificationManagerCompat.from(this@MessagingService)
+                            .notify(
+                                workspace.id.hexString,
+                                NOTIFICATION_TYPE_ASSIGNED,
+                                summaryBuilder.build()
+                            )
+                    }
                 }
             }
         }
@@ -420,7 +443,7 @@ class MessagingService : FirebaseMessagingService(), LifecycleOwner {
         private const val DATA_ACTOR = "DATA_ACTOR"
         private const val DATA_ACTION = "DATA_ACTION"
 
-        const val NOTIFICATION_TYPE_ACTION = 1
+        const val NOTIFICATION_TYPE_ACTION = 4
         const val NOTIFICATION_TYPE_REMINDER = 2
         const val NOTIFICATION_TYPE_ASSIGNED = 3
 

@@ -107,6 +107,7 @@ interface HomeComponent {
 
 class DefaultHomeComponent(
     componentContext: ComponentContext,
+    preselectWorkspace: Id?,
     showCreateTaskSheet: Boolean,
     showJoinWorkspaceFor: String?,
     private val navigateToWelcome: () -> Unit,
@@ -199,6 +200,11 @@ class DefaultHomeComponent(
 
     init {
         coroutineScope.launch {
+            // Select workspace if opened
+            preselectWorkspace?.let {
+                selectWorkspaceUseCase(it)
+            }
+
             // Open create task sheet on component creation, if requested
             val selected = getSelectedWorkspaceUseCase().first()
             if (showCreateTaskSheet && selected != null) {
