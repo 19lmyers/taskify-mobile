@@ -25,7 +25,7 @@ ktor = "2.3.8"
 lifecycle-service = "2.7.0"
 materialkolor = "1.4.0-alpha01"
 okio = "3.7.0"
-realm = "1.13.0"
+realm = "1.14.0-TEST-SNAPSHOT"
 result = "1.1.18"
 splashscreen = "1.0.1"
 tflite = "2.14.0"
@@ -103,6 +103,8 @@ materialkolor = { module = "com.materialkolor:material-kolor", version.ref = "ma
 
 okio = { module = "com.squareup.okio:okio", version.ref = "okio" }
 
+realm-gradle-plugin = { module = "io.realm.kotlin:gradle-plugin", version.ref = "realm" }
+
 realm-base = { module = "io.realm.kotlin:library-base", version.ref = "realm" }
 realm-sync = { module = "io.realm.kotlin:library-sync", version.ref = "realm" }
 
@@ -117,4 +119,3 @@ google-services = { id = "com.google.gms.google-services", version.ref = "google
 firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "crashlytics" }
 jetbrains-compose = { id = "org.jetbrains.compose", version.ref = "jetbrains-compose" }
 kotlin-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
-realm = { id = "io.realm.kotlin", version.ref = "realm" }

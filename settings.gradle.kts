@@ -10,9 +10,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven(url = "https://oss.sonatype.org/content/repositories/snapshots")
         maven(url = "https://maven.pkg.jetbrains.space/public/p/compose/dev")
-        maven(url = "https://repo.repsy.io/mvn/chrynan/public")
-        maven(url = "https://jitpack.io")
     }
 }
 

@@ -1,6 +1,6 @@
 plugins {
     id("dev.chara.taskify.convention.plugin.android-library")
-    alias(libs.plugins.realm)
+    id("io.realm.kotlin")
 }
 
 kotlin {
