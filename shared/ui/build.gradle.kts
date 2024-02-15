@@ -17,8 +17,6 @@ kotlin {
             implementation(project(":shared:domain"))
             implementation(project(":shared:component"))
 
-            implementation(libs.atomicfu)
-
             implementation(libs.coil.compose)
             implementation(libs.coil.network.ktor)
 

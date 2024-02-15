@@ -3,11 +3,10 @@ accompanist = "0.35.0-alpha"
 activity = "1.8.2"
 android = "8.3.0-rc02"
 appcompat = "1.6.1"
-atomicfu = "0.23.2"
 buildkonfig = "0.15.1"
 coil = "3.0.0-alpha04"
 core = "1.12.0"
-coroutines = "1.8.0-RC2"
+coroutines = "1.8.0"
 crashkios = "0.8.6"
 crashlytics = "2.9.9"
 datastore = "1.1.0-beta01"
@@ -17,14 +16,14 @@ desugar-jdk-libs = "2.0.4"
 essenty = "2.0.0-alpha06"
 firebase = "32.7.2"
 google = "4.4.1"
-jetbrains-compose = "1.6.0-beta02"
+jetbrains-compose = "1.6.0-rc01"
 koin = "3.6.0-alpha1"
 kotlin = "1.9.21"
 kotlinx-serialization = "1.6.2"
 ktor = "2.3.8"
 lifecycle-service = "2.7.0"
 materialkolor = "1.4.0-alpha01"
-okio = "3.7.0"
+okio = "3.8.0"
 realm = "1.14.0-TEST-SNAPSHOT"
 result = "1.1.18"
 splashscreen = "1.0.1"
@@ -48,8 +47,6 @@ androidx-datastore = { module = "androidx.datastore:datastore-preferences", vers
 androidx-lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle-service" }
 
 androidx-work = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
-
-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor", version.ref = "coil" }
