@@ -20,8 +20,6 @@ kotlin {
             implementation(libs.koin.core)
 
             implementation(libs.kotlinx.coroutines.core)
-
-            implementation(libs.result)
         }
 
         commonTest.dependencies {

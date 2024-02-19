@@ -3,8 +3,6 @@ package dev.chara.taskify.shared.component.welcome
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.essenty.backhandler.BackCallback
 import com.arkivanov.essenty.lifecycle.coroutines.coroutineScope
-import com.github.michaelbull.result.Ok
-import com.github.michaelbull.result.unwrapError
 import dev.chara.taskify.shared.domain.use_case.account.SignInUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,10 +56,8 @@ class DefaultSignInComponent(
 
             _state.value = _state.value.copy(isLoading = false)
 
-            if (result is Ok) {
+            if (result) {
                 withContext(Dispatchers.Main) { navigateToHome() }
-            } else {
-                print(result.unwrapError())
             }
         }
     }

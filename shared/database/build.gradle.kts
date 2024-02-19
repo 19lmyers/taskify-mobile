@@ -12,8 +12,6 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(libs.result)
-
             implementation(project(":shared:model"))
 
             implementation(libs.kotlinx.coroutines.core)

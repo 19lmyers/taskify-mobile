@@ -1,7 +1,5 @@
 package dev.chara.taskify.shared.database
 
-import com.github.michaelbull.result.Err
-import com.github.michaelbull.result.Ok
 import dev.chara.taskify.shared.model.Profile
 import io.realm.kotlin.Realm
 import io.realm.kotlin.annotations.ExperimentalRealmSerializerApi
@@ -25,11 +23,7 @@ class AccountManager(appId: String) {
 
     init {
         if (app.currentUser != null) {
-            val result = establishRealm(app.currentUser!!)
-            if (result is Err) {
-                println(result.error)
-                // TODO log error
-            }
+            establishRealm(app.currentUser!!)
         }
     }
 
@@ -42,14 +36,16 @@ class AccountManager(appId: String) {
         app.emailPasswordAuth.registerUser(email, password)
         login(email, password)
     } catch (ex: ServiceException) {
-        Err(ex.message)
+        ex.printStackTrace()
+        false
     }
 
     suspend fun login(email: String, password: String) = try {
         val user = app.login(Credentials.emailPassword(email, password))
         establishRealm(user)
     } catch (ex: ServiceException) {
-        Err(ex.message)
+        ex.printStackTrace()
+        false
     }
 
     suspend fun linkFcmToken(token: String) = app.currentUser?.functions?.call<Boolean>("link_fcm_token", token)
@@ -75,9 +71,10 @@ class AccountManager(appId: String) {
         val realm = Realm.open(config)
         _database = RealmDatabase(user, realm)
 
-        Ok(Unit)
+        true
     } catch (ex: Exception) {
-        Err(ex.message)
+        ex.printStackTrace()
+        false
     }
 
     suspend fun refresh(): Boolean {
@@ -91,9 +88,7 @@ class AccountManager(appId: String) {
             app.currentUser?.logOut()
             _database?.realm?.close()
             _database = null
-            Ok(Unit)
         } catch (ex: ServiceException) {
-            Err(ex.message)
+            ex.printStackTrace()
         }
-
 }

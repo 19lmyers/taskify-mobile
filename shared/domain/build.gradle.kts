@@ -21,8 +21,6 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            api(libs.result)
-
             implementation(project(":shared:database"))
             implementation(project(":shared:datastore"))
             implementation(project(":shared:ml"))

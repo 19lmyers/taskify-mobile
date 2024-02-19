@@ -25,7 +25,6 @@ lifecycle-service = "2.7.0"
 materialkolor = "1.4.0-alpha01"
 okio = "3.8.0"
 realm = "1.14.0-TEST-SNAPSHOT"
-result = "1.1.18"
 splashscreen = "1.0.1"
 tflite = "2.14.0"
 work = "2.9.0"
@@ -104,9 +103,6 @@ realm-gradle-plugin = { module = "io.realm.kotlin:gradle-plugin", version.ref = 
 
 realm-base = { module = "io.realm.kotlin:library-base", version.ref = "realm" }
 realm-sync = { module = "io.realm.kotlin:library-sync", version.ref = "realm" }
-
-result = { module = "com.michael-bull.kotlin-result:kotlin-result", version.ref = "result" }
-result-coroutines = { module = "com.michael-bull.kotlin-result:kotlin-result-coroutines", version.ref = "result" }
 
 tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tflite" }
 
